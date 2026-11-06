@@ -4,3 +4,4 @@ global using FilmAPI.Models;
 global using FilmAPI.Dtos;
 global using Microsoft.EntityFrameworkCore;
 global using FilmAPI.Services;
+global using FilmAPI.Helpers;

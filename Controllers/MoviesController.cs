@@ -1,22 +1,24 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 namespace FilmAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class MoviesController : ControllerBase
     {
-
+        private readonly IMapper _mapper;
         private readonly IMovieServices _movieServices;
         private readonly IGenreServices _genreServices;
         private new List<string> _AllowedExtention = new List<string> { ".jpg", ".png" };
         private long _MaxAllowedPosterSize = 1048576;
-        public MoviesController(IMovieServices MovieServices, IGenreServices GenreServices)
+        public MoviesController(IMovieServices MovieServices, IGenreServices GenreServices ,IMapper mapper)
         {
           
             _movieServices = MovieServices  ;
             _genreServices = GenreServices;
+            _mapper = mapper;
         }
 
         [HttpPost]
@@ -45,16 +47,10 @@ namespace FilmAPI.Controllers
             using var datastream = new MemoryStream();
             await dto.Poster.CopyToAsync(datastream);
 
-            var movie = new _Movie
-            {
-                Title = dto.Title,
-                year = dto.year,
-                GenreId = dto.GenreId,
-                Rate = dto.Rate,
-                Description = dto.Description,
-                Poster = datastream.ToArray()
-            };
-             await _movieServices.CreateMovie(movie);
+            var movie = _mapper.Map<_Movie>(dto);
+            movie.Poster = datastream.ToArray();
+
+            await _movieServices.CreateMovie(movie);
             return Ok(movie);
         }
 
@@ -62,18 +58,9 @@ namespace FilmAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
-            var movies = (await _movieServices.GetAllMovies()).Select(m => new MovieDetailsDto
-            {
-                Id = m.Id,
-                Title = m.Title,
-                year = m.year,
-                GenreId = m.GenreId,
-                Rate = m.Rate,
-                Description = m.Description,
-                Poster = m.Poster,
-                GenreName = m.Genre.Name
-            }).ToList();
-            return Ok(movies);
+            var movies = await _movieServices.GetAllMovies();
+            var data = _mapper.Map<IEnumerable<MovieDetailsDto>>(movies);
+            return Ok(data);
         }
 
         [HttpGet("{id}")]
@@ -83,8 +70,9 @@ namespace FilmAPI.Controllers
 
             if (dto == null)
                 return NotFound("Movie not found!");
+            var data = _mapper.Map<MovieDetailsDto>(dto);
 
-            return Ok(dto);
+            return Ok(data);
         }
 
         [HttpGet(template:"Genre/{genreId}")]
@@ -98,10 +86,12 @@ namespace FilmAPI.Controllers
 
             var movies = await _movieServices.GetAllMovies(genreId);
 
+
             if (!movies.Any())
                 return NotFound("No movies found for this genre!");
+            var data = _mapper.Map<IEnumerable<MovieDetailsDto>>(movies);
 
-            return Ok(movies);
+            return Ok(data);
         }
 
         [HttpDelete("{id}")]
